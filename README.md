@@ -216,7 +216,7 @@ Each service will start on its designated port and be ready to accept HTTP reque
    ```
    POST http://localhost:8080/decision/evaluate
    ```
-   Expected response: `Aucune action nécessaire.` (No action necessary)
+   Expected response: `No action necessary.`
 
 ---
 
