@@ -1,199 +1,308 @@
-# Architecture-de-service
+# Microservices-Based Monitoring and Decision System for Airport Safety
 
-## 1. Présentation du projet
+A distributed safety-critical system for monitoring and responding to dangerous situations in airport fuel station areas using a microservices architecture.
 
-Ce projet consiste à concevoir une architecture **microservices décentralisée** pour gérer une **centrale d’alerte dans une station-service**.  
-L’objectif est de simuler des objets IoT (capteurs et actionneurs), de récupérer leurs données via des API REST, de les analyser et de déclencher automatiquement des actions de sécurité.
-
-Un microservice « historique » assurera la sauvegarde des événements dans une base **MySQL**.
+**Authors:** João Gabriel Buttow Albuquerque and Fatine Azzabi  
+**Institution:** INSA Toulouse
 
 ---
 
-## 2. Scénario choisi : Sécurité d’une station-service
+## Project Overview
 
-Dans une station-service, plusieurs risques peuvent survenir : fuite de gaz, incendie, ou déclenchement manuel d’une alarme.  
-Le système doit détecter ces situations grâce à des **capteurs simulés**, analyser les données et commander automatiquement les **actionneurs de sécurité**.
+This project models a safety-critical airport system using a microservices architecture. The scenario focuses on the fuel station area of an airport, where dangerous situations such as gas leaks or fires may occur. The system is designed to detect abnormal events and trigger an immediate emergency response at the fire station.
 
----
+The architecture comprises six independent Spring Boot microservices, all created with Maven, that communicate through REST APIs. Each service is autonomous and handles a specific responsibility, demonstrating a realistic distributed system where:
 
-## 3. Objets IoT simulés
-
-### 3.1 Capteurs
-
-Chaque capteur est représenté par un microservice dédié.
-
-| Microservice           | Type    | Description                                   |
-|------------------------|---------|-----------------------------------------------|
-| `gas-sensor-service`   | Capteur | Simule le niveau de gaz (valeur numérique).  |
-| `fire-sensor-service`  | Capteur | Détecte flammes ou fumée (booléen).          |
-| `alarm-button-service` | Capteur | Simule l’état du bouton d’alarme (on/off).   |
-
-Les valeurs sont **générées ou mises à jour côté service**, sans matériel réel.
-
-### 3.2 Actionneurs
-
-Les actionneurs sont commandés via un microservice centralisé.
-
-| Actionneur         | Rôle                                            |
-|--------------------|-------------------------------------------------|
-| Sirène d’urgence   | Déclenchement d’une alarme sonore.             |
-| Lumières d’urgence | Signal visuel en cas de danger.                |
-| Portes coupe-feu   | Ouverture ou fermeture selon la situation.     |
-
-Un microservice `actuator-service` exposera des endpoints pour manipuler ces actionneurs.
+- **Sensors are autonomous** – each maintains its own state
+- **Decisions are centralized** – the Decision Engine coordinates all logic
+- **Actuators are passive** – they respond to commands from the Decision Engine
+- **Persistence is isolated** – the History Service handles all data storage
+- **Communication is RESTful** – all services interact via HTTP REST APIs
 
 ---
 
-## 4. Architecture microservices
+## Architecture
 
-### 4.1 Microservices prévus
+The system consists of six microservices:
 
-- `gas-sensor-service`  
-- `fire-sensor-service`  
-- `alarm-button-service`  
-- `actuator-service`  
-- `decision-engine-service`  
-- `history-service`  
+### 1. Gas Sensor Service
+- **Port:** 8081
+- **Purpose:** Maintains the current gas level as a numeric value
+- **State:** Stores a single `double` representing the gas concentration
+- **Endpoints:**
+  - `GET /gas` – retrieve current gas level
+  - `POST /gas?value={value}` – update gas level and trigger decision evaluation
+  - `POST /gas/simulate?value={value}` – simulate gas level without triggering evaluation
 
-### 4.2 Communication entre services
+### 2. Fire Sensor Service
+- **Port:** 8082
+- **Purpose:** Detects whether fire is present
+- **State:** Stores a single `boolean` indicating fire detection
+- **Endpoints:**
+  - `GET /fire` – retrieve fire detection state
+  - `POST /fire?value={true|false}` – update fire state and trigger decision evaluation
+  - `POST /fire/simulate?value={true|false}` – simulate fire state without triggering evaluation
 
-- Les microservices capteurs exposent des endpoints REST de lecture/simulation.  
-- `decision-engine-service` interroge les capteurs, applique les règles de décision.  
-- Selon les résultats, il envoie des commandes à `actuator-service`.  
-- Chaque décision importante est enregistrée via `history-service` dans la base MySQL.
+### 3. Alarm Button Service
+- **Port:** 8083
+- **Purpose:** Represents a manual emergency button
+- **State:** Stores a single `boolean` indicating button press state
+- **Endpoints:**
+  - `GET /alarm` – retrieve alarm button state
+  - `POST /alarm?value={true|false}` – update alarm state and trigger decision evaluation
+  - `POST /alarm/simulate?value={true|false}` – simulate alarm state without triggering evaluation
 
-L’architecture est **décentralisée** : chaque objet IoT est un service indépendant ; la coordination se fait via des appels REST.
+### 4. Decision Engine Service
+- **Port:** 8080
+- **Purpose:** Central service that retrieves all sensor states and applies decision rules
+- **State:** Stateless – queries sensors on demand
+- **Endpoints:**
+  - `POST /decision/evaluate` – query all sensors, apply rules, trigger actuators, and log events
+- **Decision Rules:**
+  - If `gasLevel > 50` → activate siren, turn on lights, open gate
+  - If `fireDetected == true` → activate siren, turn on lights, open gate
+  - If `alarmPressed == true` → activate siren, turn on lights, open gate
 
----
+### 5. Actuator Service
+- **Port:** 8084
+- **Purpose:** Represents the fire station infrastructure and controls three actuators
+- **State:** Stores current state of siren, alarm lights, and gate
+- **Actuators:**
+  - **Siren** – emergency alarm sound (ON/OFF)
+  - **Alarm Lights** – visual warning signals (ON/OFF)
+  - **Gate** – fire station gate (OPEN/CLOSED)
+- **Endpoints:**
+  - `GET /actuators/state` – retrieve current state of all actuators
+  - `POST /actuators/siren?value={true|false}` – control siren
+  - `POST /actuators/lights?value={true|false}` – control alarm lights
+  - `POST /actuators/doors?state={OPEN|CLOSED}` – control gate
 
-## 5. Règles de décision
-
-La logique métier est centralisée dans `decision-engine-service`.
-
-### 5.1 Détection de gaz
-
-SI gasLevel > 50 :
-- activer sirène
-- allumer lumières d’urgence
-- fermer portes coupe-feu
-
-### 5.2 Détection d’incendie
-
-SI fireDetected == true :
-- activer sirène
-- allumer lumières d’urgence
-- ouvrir portes coupe-feu (évacuation)
-
-### 5.3 Bouton d’alarme
-
-SI alarm == true :
-- activer sirène
-- allumer lumières d’urgence
-- ouvrir portes coupe-feu
-
-Ces règles pourront évoluer (seuils différents, priorités entre capteurs, etc.).
-
----
-
-## 6. Base de données MySQL
-
-### 6.1 Rôle
-
-La base de données est utilisée pour **stocker l’historique** des événements de la centrale d’alerte :  
-détections de gaz, d’incendie, appuis sur le bouton d’alarme, et actions déclenchées.
-
-### 6.2 Table conceptuelle : `events`
-
-| Champ            | Type     | Description                                  |
-|------------------|----------|----------------------------------------------|
-| `id`             | INT      | Identifiant unique de l’événement            |
-| `timestamp`      | DATETIME | Date et heure de l’événement                 |
-| `sensorType`     | VARCHAR  | Type de capteur (gaz, feu, bouton)           |
-| `value`          | VARCHAR  | Valeur lue (ex : 80, true, pressed…)         |
-| `actionTriggered`| VARCHAR  | Actions appliquées (sirene=ON;doors=CLOSE…)  |
-
-Les tables seront créées **manuellement** via MySQL Workbench ou un autre outil SQL, conformément aux consignes.
+### 6. History Service
+- **Port:** 8085
+- **Purpose:** Persists all events (sensor readings and triggered actions) in a MySQL database
+- **Database:** MySQL with table `Event`
+- **Endpoints:**
+  - `POST /history/save?sensorType={type}&value={value}&action={action}` – save event to database
+  - `GET /history/all` – retrieve all stored events
 
 ---
 
-## 7. Endpoints REST prévus
+## Database Schema
 
-> Ces endpoints sont **prévisionnels** : ils décrivent l’API, sans implémentation à ce stade.
+The History Service uses a MySQL database with the following table:
 
-### 7.1 Capteurs
+**Table: `Event`**
 
-GET  /gas  
-→ retourne le niveau actuel de gaz simulé  
-
-POST /gas/simulate  
-→ met à jour ou génère une nouvelle valeur de gaz  
-
-GET  /fire  
-→ retourne l’état du capteur d’incendie (true/false)  
-
-POST /fire/simulate  
-→ simule l’apparition/disparition d’un feu  
-
-GET  /alarm  
-→ retourne l’état actuel du bouton d’alarme  
-
-POST /alarm/simulate  
-→ simule un appui sur le bouton d’alarme  
-
-### 7.2 Moteur de décision
-
-POST /decision/evaluate  
-→ récupère les valeurs des capteurs, applique les règles,  
-  envoie les commandes aux actionneurs et notifie l’historique  
-
-### 7.3 Actionneurs
-
-POST /actuators/siren  
-→ active ou désactive la sirène  
-
-POST /actuators/lights  
-→ active ou désactive les lumières d’urgence  
-
-POST /actuators/doors  
-→ ouvre ou ferme les portes coupe-feu  
-
-GET  /actuators/state  
-→ retourne l’état courant des actionneurs  
-
-### 7.4 Historique
-
-POST /history/save  
-→ enregistre un nouvel événement dans la base  
-
-GET  /history/all  
-→ retourne la liste des événements enregistrés  
+| Column            | Type         | Description                                      |
+|-------------------|--------------|--------------------------------------------------|
+| `id`              | BIGINT       | Primary key, auto-increment                      |
+| `timestamp`       | DATETIME     | Event timestamp (automatically set)              |
+| `sensor_type`     | VARCHAR(255) | Type of sensor (gas, fire, alarm)                |
+| `value`           | VARCHAR(255) | Sensor value (e.g., "60.0", "true", "false")     |
+| `action_triggered`| VARCHAR(255) | Description of triggered action or "lecture"     |
 
 ---
 
-## 8. Schéma d’architecture (conceptuel)
+## How to Run
 
-gas-sensor-service          fire-sensor-service          alarm-button-service  
-          \                         |                           /  
-           \                        |                          /  
-            \                       |                         /  
-                     decision-engine-service  
-                             |  
-                             |  
-                     actuator-service  
-                             |  
-                             |  
-                     history-service   --> base MySQL  
+### Prerequisites
+- Java 17 or higher
+- Maven 3.6+
+- MySQL database (optional for testing with H2)
+
+### Starting the Services
+
+**IMPORTANT:** Services must be started in the following order to ensure proper dependency resolution:
+
+1. **Gas Sensor Service**
+   ```bash
+   cd gas-sensor-service
+   mvn spring-boot:run
+   ```
+
+2. **Fire Sensor Service**
+   ```bash
+   cd fire-sensor-service
+   mvn spring-boot:run
+   ```
+
+3. **Alarm Button Service**
+   ```bash
+   cd alarm-button-service
+   mvn spring-boot:run
+   ```
+
+4. **Actuator Service**
+   ```bash
+   cd actuator-service
+   mvn spring-boot:run
+   ```
+
+5. **History Service**
+   ```bash
+   cd history-service
+   mvn spring-boot:run
+   ```
+
+6. **Decision Engine Service**
+   ```bash
+   cd decision-engine-service
+   mvn spring-boot:run
+   ```
+
+Each service will start on its designated port and be ready to accept HTTP requests.
 
 ---
 
-## 9. Prochaines étapes
+## Testing with Postman
 
-- Créer le dépôt GitHub pour le projet et y placer ce README.  
-- Créer les projets Spring Boot pour chaque microservice.  
-- Créer la base MySQL et la table `events` à l’aide de MySQL Workbench.  
-- Implémenter progressivement :
-  - la simulation des capteurs ;  
-  - les endpoints des actionneurs ;  
-  - la logique du `decision-engine-service` ;  
-  - l’écriture des événements via `history-service`.  
-- Tester les appels REST (GET/POST) avec Postman ou un autre client HTTP.
+### Scenario 1: High Gas Level Detection
+
+1. **Update gas level to trigger emergency:**
+   ```
+   POST http://localhost:8081/gas?value=60
+   ```
+   This will:
+   - Update the gas sensor value to 60
+   - Automatically trigger `/decision/evaluate`
+   - Activate siren, lights, and open gate
+   - Log events to the database
+
+2. **Check actuator state:**
+   ```
+   GET http://localhost:8084/actuators/state
+   ```
+   Expected response: `siren=true, lights=true, doors=OPEN`
+
+3. **View event history:**
+   ```
+   GET http://localhost:8085/history/all
+   ```
+
+### Scenario 2: Fire Detection
+
+1. **Simulate fire detection:**
+   ```
+   POST http://localhost:8082/fire?value=true
+   ```
+   This triggers the same emergency response as high gas levels.
+
+### Scenario 3: Manual Alarm Button
+
+1. **Press the alarm button:**
+   ```
+   POST http://localhost:8083/alarm?value=true
+   ```
+   This also triggers the full emergency response.
+
+### Scenario 4: Normal Conditions
+
+1. **Set gas level below threshold:**
+   ```
+   POST http://localhost:8081/gas?value=30
+   ```
+
+2. **Set fire sensor to false:**
+   ```
+   POST http://localhost:8082/fire?value=false
+   ```
+
+3. **Set alarm to false:**
+   ```
+   POST http://localhost:8083/alarm?value=false
+   ```
+
+4. **Manually trigger evaluation:**
+   ```
+   POST http://localhost:8080/decision/evaluate
+   ```
+   Expected response: `Aucune action nécessaire.` (No action necessary)
+
+---
+
+## Expected System Behavior
+
+### Emergency Detection Flow
+
+1. **Sensor Update:** A sensor value is updated via POST request
+2. **Automatic Evaluation:** The sensor service calls the Decision Engine's `/decision/evaluate` endpoint
+3. **Rule Processing:** The Decision Engine:
+   - Queries all three sensors via REST calls
+   - Logs current sensor readings to the History Service
+   - Evaluates decision rules against current state
+4. **Emergency Response:** If any rule is triggered:
+   - Commands are sent to the Actuator Service
+   - Siren is activated
+   - Alarm lights are turned on
+   - Gate is opened
+   - Emergency action is logged to the History Service
+5. **Persistence:** All events (readings and actions) are stored in the MySQL database with timestamps
+
+### Database Traceability
+
+After running the test scenarios, the `Event` table will contain a full trace showing:
+- All sensor readings with timestamps
+- Actions triggered by each emergency condition
+- Complete audit trail of system behavior
+
+This ensures full traceability and allows for post-incident analysis of system responses.
+
+---
+
+## System Architecture Diagram
+
+```
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  Gas Sensor     │  │  Fire Sensor    │  │  Alarm Button   │
+│  Service        │  │  Service        │  │  Service        │
+│  (Port 8081)    │  │  (Port 8082)    │  │  (Port 8083)    │
+└────────┬────────┘  └────────┬────────┘  └────────┬────────┘
+         │                    │                     │
+         │                    │                     │
+         └────────────────────┼─────────────────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │  Decision Engine      │
+                  │  Service              │
+                  │  (Port 8080)          │
+                  └───────────┬───────────┘
+                              │
+                 ┌────────────┴────────────┐
+                 │                         │
+                 ▼                         ▼
+      ┌──────────────────┐    ┌──────────────────┐
+      │  Actuator        │    │  History         │
+      │  Service         │    │  Service         │
+      │  (Port 8084)     │    │  (Port 8085)     │
+      └──────────────────┘    └────────┬─────────┘
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │  MySQL Database │
+                              │  (Event Table)  │
+                              └─────────────────┘
+```
+
+---
+
+## Key Features
+
+✓ **Microservices Architecture** – each service is independent and can be deployed separately  
+✓ **RESTful Communication** – all inter-service communication uses HTTP REST APIs  
+✓ **Centralized Decision Logic** – business rules are isolated in the Decision Engine  
+✓ **Event Persistence** – full audit trail of all sensor readings and actions  
+✓ **Safety-Critical Design** – immediate response to dangerous conditions  
+✓ **Manual Override** – emergency button provides manual control  
+✓ **Distributed State Management** – each sensor maintains its own state independently
+
+---
+
+## Technologies Used
+
+- **Spring Boot** – microservices framework
+- **Maven** – build and dependency management
+- **MySQL** – persistent data storage
+- **JPA/Hibernate** – object-relational mapping
+- **REST** – inter-service communication
+- **Postman** – API testing
