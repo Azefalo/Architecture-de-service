@@ -1,0 +1,23 @@
+package fr.insa.ms.decisionengineservice.service;
+
+import org.springframework.stereotype.Service;
+import fr.insa.ms.decisionengineservice.client.GasSensorClient;
+
+@Service
+public class DecisionService {
+
+    private final GasSensorClient gasSensorClient;
+
+    public DecisionService(GasSensorClient gasSensorClient) {
+        this.gasSensorClient = gasSensorClient;
+    }
+
+    public String evaluateGasLevel() {
+        double level = gasSensorClient.getGasLevel();
+
+        if (level > 50) { // seuil d’alerte, à adapter si besoin
+            return "ALERT : niveau de gaz élevé (" + level + ")";
+        }
+        return "OK : niveau de gaz normal (" + level + ")";
+    }
+}

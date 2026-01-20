@@ -1,0 +1,5 @@
+package fr.insa.ms.firesensorservice.controller;
+
+public class FireSensorController {
+
+}

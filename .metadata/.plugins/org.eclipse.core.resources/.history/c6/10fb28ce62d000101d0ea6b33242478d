@@ -1,0 +1,5 @@
+package fr.insa.ms.decisionengineservice.controller;
+
+public class DecisionController {
+
+}

@@ -1,0 +1,23 @@
+package fr.insa.ms.firesensorservice.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class FireSensorController {
+
+    private boolean fireDetected = false;
+
+    @GetMapping("/fire")
+    public boolean getFireState() {
+        return fireDetected;
+    }
+
+    @PostMapping("/fire/simulate")
+    public void simulateFire(@RequestParam("value") boolean newValue) {
+        this.fireDetected = newValue;
+        System.out.println("Nouvel état du capteur feu : " + newValue);
+    }
+}

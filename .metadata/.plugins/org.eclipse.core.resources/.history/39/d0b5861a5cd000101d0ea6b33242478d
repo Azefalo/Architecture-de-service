@@ -1,0 +1,13 @@
+package fr.insa.ms.gassensorservice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class GasSensorServiceApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(GasSensorServiceApplication.class, args);
+	}
+
+}

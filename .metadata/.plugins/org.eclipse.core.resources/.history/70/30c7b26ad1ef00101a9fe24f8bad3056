@@ -1,0 +1,71 @@
+package fr.insa.ms.decisionengineservice.controller;
+
+import fr.insa.ms.decisionengineservice.client.ActuatorClient;
+import fr.insa.ms.decisionengineservice.client.AlarmButtonClient;
+import fr.insa.ms.decisionengineservice.client.FireSensorClient;
+import fr.insa.ms.decisionengineservice.client.GasSensorClient;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class DecisionController {
+
+    private final GasSensorClient gasClient;
+    private final FireSensorClient fireClient;
+    private final AlarmButtonClient alarmClient;
+    private final ActuatorClient actuatorClient;
+
+    public DecisionController(
+            GasSensorClient gasClient,
+            FireSensorClient fireClient,
+            AlarmButtonClient alarmClient,
+            ActuatorClient actuatorClient
+    ) {
+        this.gasClient = gasClient;
+        this.fireClient = fireClient;
+        this.alarmClient = alarmClient;
+        this.actuatorClient = actuatorClient;
+    }
+
+    @PostMapping("/decision/evaluate")
+    public String evaluate() {
+
+        double gas = gasClient.getGasLevel();
+        boolean fire = fireClient.getFireState();
+        boolean alarm = alarmClient.getAlarmState();
+
+        System.out.println("État des capteurs : gas=" + gas + ", fire=" + fire + ", alarm=" + alarm);
+
+        String actions = "";
+
+        // RÈGLE 1 : Gaz
+        if (gas > 50) {
+            actuatorClient.activateSiren(true);
+            actuatorClient.setLights(true);
+            actuatorClient.setDoors("CLOSED");
+            actions += "Gaz élevé → sirène ON, lumières ON, portes CLOSE.\n";
+        }
+
+        // RÈGLE 2 : Incendie
+        if (fire) {
+            actuatorClient.activateSiren(true);
+            actuatorClient.setLights(true);
+            actuatorClient.setDoors("OPEN");
+            actions += "Feu détecté → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        // RÈGLE 3 : Bouton d’alarme
+        if (alarm) {
+            actuatorClient.activateSiren(true);
+            actuatorClient.setLights(true);
+            actuatorClient.setDoors("OPEN");
+            actions += "Bouton d’alarme → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        if (actions.isEmpty()) {
+            actions = "Aucune action nécessaire.";
+        }
+
+        return actions;
+    }
+}

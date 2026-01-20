@@ -1,0 +1,5 @@
+package fr.insa.ms.alarmbuttonservice.controller;
+
+public class AlarmButtonController {
+
+}

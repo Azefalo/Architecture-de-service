@@ -1,0 +1,34 @@
+package fr.insa.ms.alarmbuttonservice.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+@RestController
+public class AlarmButtonController {
+
+    private boolean alarmPressed = false;
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @GetMapping("/alarm")
+    public boolean getAlarmState() {
+        return alarmPressed;
+    }
+
+    @PostMapping("/alarm/simulate")
+    public void simulateAlarm() {
+        this.alarmPressed = true;
+        System.out.println("Bouton d'alarme simulé : pressed = true");
+    }
+    @PostMapping("/alarm")
+    public String setAlarm(@RequestParam boolean value) {
+    	this.alarmPressed = value;
+    	return restTemplate.postForObject(
+	    	"http://localhost:8080/decision/evaluate",
+	    	null,
+	    	String.class
+    	);	
+    }
+}

@@ -1,0 +1,8 @@
+spring.application.name=decision-engine-service
+
+server.port=8080
+gas-sensor-service.port = 8081
+fire-sensor-service.port = 8082
+alarm-button-service.port = 8083
+actuator-service.port = 8084
+decision-engine-service.port = 8080

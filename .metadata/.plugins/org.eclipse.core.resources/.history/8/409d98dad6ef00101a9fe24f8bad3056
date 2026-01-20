@@ -1,0 +1,54 @@
+package fr.insa.ms.decisionengineservice.service;
+
+import fr.insa.ms.decisionengineservice.client.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class DecisionService {
+
+    private final GasSensorClient gasClient;
+    private final FireSensorClient fireClient;
+    private final AlarmButtonClient alarmClient;
+    private final ActuatorClient actuatorClient;
+
+    public DecisionService(GasSensorClient gasClient,
+                           FireSensorClient fireClient,
+                           AlarmButtonClient alarmClient,
+                           ActuatorClient actuatorClient) {
+        this.gasClient = gasClient;
+        this.fireClient = fireClient;
+        this.alarmClient = alarmClient;
+        this.actuatorClient = actuatorClient;
+    }
+
+    public String evaluate() {
+        double gas = gasClient.getGasLevel();
+        boolean fire = fireClient.getFireState();
+        boolean alarm = alarmClient.getAlarmState();
+
+        String actions = "";
+
+        if (gas > 50) {
+            actuatorClient.activateSiren(true);
+            actuatorClient.setLights(true);
+            actuatorClient.setDoors("OPEN");
+            actions += "Gaz élevé → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        if (fire) {
+            actuatorClient.activateSiren(true);
+            actuatorClient.setLights(true);
+            actuatorClient.setDoors("OPEN");
+            actions += "Feu détecté → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        if (alarm) {
+            actuatorClient.activateSiren(true);
+            actuatorClient.setLights(true);
+            actuatorClient.setDoors("OPEN");
+            actions += "Bouton d’alarme → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        return actions.isEmpty() ? "Aucune action nécessaire." : actions;
+    }
+}

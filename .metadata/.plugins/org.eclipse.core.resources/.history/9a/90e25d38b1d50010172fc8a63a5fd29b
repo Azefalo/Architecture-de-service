@@ -1,0 +1,24 @@
+package fr.insa.ms.historyservice.controller;
+
+import fr.insa.ms.historyservice.model.Event;
+import fr.insa.ms.historyservice.repository.EventRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/history")
+public class HistoryController {
+
+    @Autowired
+    private EventRepository repository;
+
+    @PostMapping("/save")
+    public Event saveEvent(@RequestBody Event event) {
+        return repository.save(event);
+    }
+
+    @GetMapping("/all")
+    public Iterable<Event> getAll() {
+        return repository.findAll();
+    }
+}

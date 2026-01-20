@@ -1,0 +1,3 @@
+spring.application.name=decision-engine-service
+
+server.port=8080

@@ -1,0 +1,57 @@
+package fr.insa.ms.decisionengineservice.controller;
+
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+@RestController
+public class DecisionController {
+
+    private RestTemplate rest = new RestTemplate();
+
+    @PostMapping("/decision/evaluate")
+    public String evaluate() {
+
+        //  LECTURE DES CAPTEURS
+        Double gas = rest.getForObject("http://localhost:8081/gas", Double.class);
+        Boolean fire = rest.getForObject("http://localhost:8082/fire", Boolean.class);
+        Boolean alarm = rest.getForObject("http://localhost:8083/alarm", Boolean.class);
+
+        System.out.println("État des capteurs : gas=" + gas + ", fire=" + fire + ", alarm=" + alarm);
+
+        String actions = "";
+
+        // RÈGLE 1 : Gaz 
+        if (gas != null && gas > 50) {
+            rest.postForObject("http://localhost:8084/actuators/siren?value=true", null, Void.class);
+            rest.postForObject("http://localhost:8084/actuators/lights?value=true", null, Void.class);
+            rest.postForObject("http://localhost:8084/actuators/doors?state=CLOSED", null, Void.class);
+
+            actions += "Gaz élevé → sirène ON, lumières ON, portes CLOSE.\n";
+        }
+
+        // RÈGLE 2 : Incendie 
+        if (fire != null && fire == true) {
+            rest.postForObject("http://localhost:8084/actuators/siren?value=true", null, Void.class);
+            rest.postForObject("http://localhost:8084/actuators/lights?value=true", null, Void.class);
+            rest.postForObject("http://localhost:8084/actuators/doors?state=OPEN", null, Void.class);
+
+            actions += "Feu détecté → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        // RÈGLE 3 : Bouton d’alarme
+        if (alarm != null && alarm == true) {
+            rest.postForObject("http://localhost:8084/actuators/siren?value=true", null, Void.class);
+            rest.postForObject("http://localhost:8084/actuators/lights?value=true", null, Void.class);
+            rest.postForObject("http://localhost:8084/actuators/doors?state=OPEN", null, Void.class);
+
+            actions += "Bouton d’alarme → sirène ON, lumières ON, portes OPEN.\n";
+        }
+
+        if (actions.equals("")) {
+            actions = "Aucune action nécessaire.";
+        }
+
+        return actions;
+    }
+}
